@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jigsaw Puzzle</title>
+    <!-- Core p5.js library for drawing and game logic -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+    <style>
+        /* General body and container styling */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #main-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #p5-canvas-container {
+            width: 100%;
+            height: 100%;
+            overflow: auto; /* Add scrollbars if canvas is larger than container */
+        }
+        canvas {
+            display: block; /* Removes default bottom margin */
+        }
+        /* Menu and Modal Styling */
+        #menu, #start-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            padding: 2rem;
+            background-color: #2d3748; /* Darker gray background */
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            text-align: center;
+        }
+        #menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        #start-modal {
+            display: none;
+            width: 100%;
+            max-width: 28rem;
+        }
+        h1 {
+            font-size: 2.25rem;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 1rem;
+        }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 1.5rem;
+        }
+        #menu button, #start-modal button, #menu a {
+            transition: all 0.2s ease-in-out;
+            width: 100%;
+            font-weight: bold;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1.125rem;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        #start-modal .space-y-6 > * + * {
+            margin-top: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #d1d5db;
+            text-align: left;
+        }
+        input[type="file"], select {
+            display: block;
+            width: 100%;
+            font-size: 0.875rem;
+            border-radius: 0.5rem;
+            padding: 0.625rem 1rem;
+            background-color: #374151; /* Dark gray input fields */
+            color: white;
+            border: 1px solid #4b5563;
+        }
+        input[type="file"] {
+            padding: 0;
+            color: #9ca3af;
+        }
+        input[type="file"]::file-selector-button {
+            margin-right: 1rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background-color: #2563eb;
+            color: white;
+            cursor: pointer;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: #1d4ed8;
+        }
+        select:focus, input:focus {
+            outline: 2px solid #3b82f6;
+            border-color: #3b82f6;
+        }
+        .mt-8 { margin-top: 2rem; }
+        .flex { display: flex; }
+        .justify-between { justify-content: space-between; }
+        .space-x-4 > * + * { margin-left: 1rem; }
+
+        #cancel-btn {
+            background-color: #4b5563;
+            color: white;
+            font-size: 1rem;
+        }
+        #cancel-btn:hover { background-color: #374151; }
+
+        #create-puzzle-btn {
+            background-color: #16a34a;
+            color: white;
+            font-size: 1rem;
+        }
+        #create-puzzle-btn:hover { background-color: #15803d; }
+
+        #start-btn {
+            background-color: #2563eb;
+            color: white;
+        }
+        #start-btn:hover { background-color: #1d4ed8; }
+
+        #reset-btn {
+            background-color: #dc2626;
+            color: white;
+        }
+        #reset-btn:hover { background-color: #b91c1c; }
+
+        #modal-error {
+            color: #ef4444;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            min-height: 1rem;
+        }
+
+        #loading-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #d1d5db;
+            font-size: 1.25rem;
+            display: none;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-container">
+        <!-- Initial menu -->
+        <div id="menu">
+            <h1>Jigsaw Puzzle</h1>
+            <button id="start-btn">Start Puzzles</button>
+            <button id="reset-btn">Reset</button>
+        </div>
+
+        <!-- Image upload modal -->
+        <div id="start-modal">
+            <h2>Create Your Puzzle</h2>
+            <div>
+                <div class="space-y-6">
+                    <div>
+                        <label for="image-upload">Upload Image</label>
+                        <input type="file" id="image-upload" accept="image/*">
+                    </div>
+                    <div>
+                        <label for="piece-count">Number of Pieces</label>
+                        <select id="piece-count">
+                            <option value="15">15</option>
+                            <option value="30">30</option>
+                            <option value="40">40</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 flex justify-between space-x-4">
+                 <button id="cancel-btn">Cancel</button>
+                <button id="create-puzzle-btn">Create</button>
+            </div>
+            <p id="modal-error"></p>
+        </div>
+
+        <!-- The p5.js canvas will be created inside this container -->
+        <div id="p5-canvas-container"></div>
+        <div id="loading-message">Loading...</div>
+    </div>
+
+    <script>
+        // Main p5.js sketch logic
+        const sketch = (p) => {
+            let img;
+            let pieces = [];
+            let groups = [];
+            let pieceWidth, pieceHeight;
+            let cols, rows;
+            let puzzleWidth, puzzleHeight;
+            let selectedGroup = null;
+            let offsetX, offsetY;
+            let isDragging = false;
+            let gameState = 'menu';
+
+            const SNAP_TOLERANCE = 15; // Increased from 20 to 24 (effectively 20 +/- 4)
+            const GLOW_DURATION = 60;
+
+            const generatePath = (w, h, i, j, rows, cols, tabHeight, margin) => {
+                let points = [];
+                // Top edge
+                points.push({x: margin, y: margin});
+                points.push({x: margin + w/3, y: margin});
+                if (i > 0) {
+                    let isTab = (i % 2 === 0);
+                    if (isTab) {
+                        // Rounded tab up
+                        points.push({x: margin + w/3 + w/12, y: margin - tabHeight * 0.2});
+                        points.push({x: margin + w/2 - w/12, y: margin - tabHeight * 0.8});
+                        points.push({x: margin + w/2, y: margin - tabHeight});
+                        points.push({x: margin + w/2 + w/12, y: margin - tabHeight * 0.8});
+                        points.push({x: margin + 2*w/3 - w/12, y: margin - tabHeight * 0.2});
+                    } else {
+                        // Rounded cutout down
+                        points.push({x: margin + w/3 + w/12, y: margin + tabHeight * 0.2});
+                        points.push({x: margin + w/2 - w/12, y: margin + tabHeight * 0.8});
+                        points.push({x: margin + w/2, y: margin + tabHeight});
+                        points.push({x: margin + w/2 + w/12, y: margin + tabHeight * 0.8});
+                        points.push({x: margin + 2*w/3 - w/12, y: margin + tabHeight * 0.2});
+                    }
+                }
+                points.push({x: margin + 2*w/3, y: margin});
+                points.push({x: margin + w, y: margin});
+                // Right edge
+                points.push({x: margin + w, y: margin + h/3});
+                if (j < cols-1) {
+                    let isTab = (j % 2 === 0);
+                    if (isTab) {
+                        // Rounded tab right
+                        points.push({x: margin + w + tabHeight * 0.2, y: margin + h/3 + h/12});
+                        points.push({x: margin + w + tabHeight * 0.8, y: margin + h/2 - h/12});
+                        points.push({x: margin + w + tabHeight, y: margin + h/2});
+                        points.push({x: margin + w + tabHeight * 0.8, y: margin + h/2 + h/12});
+                        points.push({x: margin + w + tabHeight * 0.2, y: margin + 2*h/3 - h/12});
+                    } else {
+                        // Rounded cutout left
+                        points.push({x: margin + w - tabHeight * 0.2, y: margin + h/3 + h/12});
+                        points.push({x: margin + w - tabHeight * 0.8, y: margin + h/2 - h/12});
+                        points.push({x: margin + w - tabHeight, y: margin + h/2});
+                        points.push({x: margin + w - tabHeight * 0.8, y: margin + h/2 + h/12});
+                        points.push({x: margin + w - tabHeight * 0.2, y: margin + 2*h/3 - h/12});
+                    }
+                }
+                points.push({x: margin + w, y: margin + 2*h/3});
+                points.push({x: margin + w, y: margin + h});
+                // Bottom edge
+                points.push({x: margin + 2*w/3, y: margin + h});
+                if (i < rows-1) {
+                    let isTab = (i % 2 === 0);
+                    if (isTab) {
+                        // Rounded tab down
+                        points.push({x: margin + 2*w/3 - w/12, y: margin + h + tabHeight * 0.2});
+                        points.push({x: margin + w/2 + w/12, y: margin + h + tabHeight * 0.8});
+                        points.push({x: margin + w/2, y: margin + h + tabHeight});
+                        points.push({x: margin + w/2 - w/12, y: margin + h + tabHeight * 0.8});
+                        points.push({x: margin + w/3 + w/12, y: margin + h + tabHeight * 0.2});
+                    } else {
+                        // Rounded cutout up
+                        points.push({x: margin + 2*w/3 - w/12, y: margin + h - tabHeight * 0.2});
+                        points.push({x: margin + w/2 + w/12, y: margin + h - tabHeight * 0.8});
+                        points.push({x: margin + w/2, y: margin + h - tabHeight});
+                        points.push({x: margin + w/2 - w/12, y: margin + h - tabHeight * 0.8});
+                        points.push({x: margin + w/3 + w/12, y: margin + h - tabHeight * 0.2});
+                    }
+                }
+                points.push({x: margin + w/3, y: margin + h});
+                points.push({x: margin, y: margin + h});
+                // Left edge
+                points.push({x: margin, y: margin + 2*h/3});
+                if (j > 0) {
+                    let isTab = (j % 2 === 0);
+                    if (isTab) {
+                        // Rounded tab left
+                        points.push({x: margin - tabHeight * 0.2, y: margin + 2*h/3 - h/12});
+                        points.push({x: margin - tabHeight * 0.8, y: margin + h/2 + h/12});
+                        points.push({x: margin - tabHeight, y: margin + h/2});
+                        points.push({x: margin - tabHeight * 0.8, y: margin + h/2 - h/12});
+                        points.push({x: margin - tabHeight * 0.2, y: margin + h/3 + h/12});
+                    } else {
+                        // Rounded cutout right
+                        points.push({x: margin + tabHeight * 0.2, y: margin + 2*h/3 - h/12});
+                        points.push({x: margin + tabHeight * 0.8, y: margin + h/2 + h/12});
+                        points.push({x: margin + tabHeight, y: margin + h/2});
+                        points.push({x: margin + tabHeight * 0.8, y: margin + h/2 - h/12});
+                        points.push({x: margin + tabHeight * 0.2, y: margin + h/3 + h/12});
+                    }
+                }
+                points.push({x: margin, y: margin + h/3});
+                return points;
+            };
+            
+            p.preload = () => {
+                // p5.js functions
+            };
+
+            p.setup = () => {
+                const canvasContainer = document.getElementById('p5-canvas-container');
+                const c = p.createCanvas(canvasContainer.offsetWidth, canvasContainer.offsetHeight);
+                c.parent('p5-canvas-container');
+                p.background(31, 41, 55);
+            };
+
+            p.draw = () => {
+                if (gameState === 'playing') {
+                    p.background(31, 41, 55);
+                    p.imageMode(p.CORNER);
+                    
+                    // Draw groups in a specific order to bring the selected one to the front
+                    groups.forEach(group => {
+                        if (group !== selectedGroup) {
+                            group.draw();
+                        }
+                    });
+                    
+                    if (selectedGroup) {
+                        selectedGroup.draw();
+                    }
+                } else if (gameState === 'finished') {
+                    p.background(31, 41, 55);
+                    groups[0].draw();
+                    
+                    p.fill(255);
+                    p.textSize(64);
+                    p.textAlign(p.CENTER, p.CENTER);
+                    p.text("You Win!", p.width / 2, p.height / 2);
+                }
+            };
+
+            class Piece {
+                constructor(p, img, x, y, w, h, i, j, rows, cols) {
+                    this.p = p;
+                    this.img = img;
+                    this.x = x;
+                    this.y = y;
+                    this.w = w;
+                    this.h = h;
+                    this.origI = i;
+                    this.origJ = j;
+                    this.rows = rows;
+                    this.cols = cols;
+                    this.hasTabTop = i > 0 && (i % 2 === 0);
+                    this.hasTabBottom = i < rows-1 && (i % 2 === 0);
+                    this.hasTabLeft = j > 0 && (j % 2 === 0);
+                    this.hasTabRight = j < cols-1 && (j % 2 === 0);
+                    this.tabHeight = 0.1 * Math.min(w, h);
+                    this.margin = this.tabHeight;
+                    this.bufferW = w + 2 * this.margin;
+                    this.bufferH = h + 2 * this.margin;
+                    this.buffer = this.p.createGraphics(this.bufferW, this.bufferH);
+                    this.buffer.fill(255);
+                    this.buffer.noStroke();
+                    let points = generatePath(w, h, i, j, rows, cols, this.tabHeight, this.margin);
+                    this.buffer.beginShape();
+                    for (let pt of points) {
+                        this.buffer.vertex(pt.x, pt.y);
+                    }
+                    this.buffer.endShape(this.p.CLOSE);
+                    this.maskImg = this.buffer.get();
+                    this.pieceImg = img;
+                    this.pieceImg.mask(this.maskImg);
+                }
+
+                draw() {
+                    this.p.image(this.pieceImg, this.x - this.margin, this.y - this.margin);
+                }
+
+                isMouseOver() {
+                    return this.p.mouseX > this.x && this.p.mouseX < this.x + this.w &&
+                           this.p.mouseY > this.y && this.p.mouseY < this.y + this.h;
+                }
+            }
+
+            class PieceGroup {
+                constructor(initialPiece) {
+                    this.pieces = [initialPiece];
+                    this.glow = 0;
+                }
+                
+                draw() {
+                    if (this.glow > 0) {
+                        this.drawGlow();
+                        this.glow--;
+                    }
+                    this.pieces.forEach(piece => piece.draw());
+                }
+                
+                drawGlow() {
+                    const bounds = this.getBounds();
+                    const alpha = p.map(this.glow, 0, GLOW_DURATION, 0, 150);
+                    p.noStroke();
+                    p.fill(0, 150, 255, alpha);
+                    
+                    p.drawingContext.shadowBlur = 32;
+                    p.drawingContext.shadowColor = 'rgba(0, 150, 255, 0.7)';
+                    p.rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 8);
+                    p.drawingContext.shadowBlur = 0;
+                }
+
+                isMouseOver() {
+                    return this.pieces.some(piece => piece.isMouseOver());
+                }
+
+                move(dx, dy) {
+                    this.pieces.forEach(piece => {
+                        piece.x += dx;
+                        piece.y += dy;
+                    });
+                }
+
+                merge(otherGroup) {
+                    otherGroup.pieces.forEach(p => this.pieces.push(p));
+                    this.glow = GLOW_DURATION;
+                }
+
+                getBounds() {
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    this.pieces.forEach(piece => {
+                        minX = Math.min(minX, piece.x - piece.margin);
+                        minY = Math.min(minY, piece.y - piece.margin);
+                        maxX = Math.max(maxX, piece.x + piece.w + piece.margin);
+                        maxY = Math.max(maxY, piece.y + piece.h + piece.margin);
+                    });
+                    return { minX, minY, maxX, maxY };
+                }
+            }
+
+            p.startPuzzle = (uploadedImg, pieceCount) => {
+                img = uploadedImg;
+                gameState = 'playing';
+
+                const aspectRatio = img.width / img.height;
+                let bestCols = 0;
+                let bestRows = 0;
+                let minDiff = Infinity;
+
+                for (let i = 1; i <= pieceCount; i++) {
+                    if (pieceCount % i === 0) {
+                        const j = pieceCount / i;
+                        const diff = Math.abs(i / j - aspectRatio);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            bestCols = i;
+                            bestRows = j;
+                        }
+                    }
+                }
+                cols = bestCols;
+                rows = bestRows;
+
+                const maxDim = Math.min(p.windowWidth * 0.8, p.windowHeight * 0.8, 800);
+                const scale = Math.min(maxDim / Math.max(img.width, img.height), 1);
+                img.resize(Math.floor(img.width * scale), Math.floor(img.height * scale));
+                puzzleWidth = img.width;
+                puzzleHeight = img.height;
+                
+                pieceWidth = puzzleWidth / cols;
+                pieceHeight = puzzleHeight / rows;
+
+                const canvasWidth = Math.max(p.windowWidth, puzzleWidth + 200);
+                const canvasHeight = Math.max(p.windowHeight, puzzleHeight + 200);
+                p.resizeCanvas(canvasWidth, canvasHeight);
+                
+                createPieces();
+                scatterPieces();
+
+                document.getElementById('menu').style.display = 'none';
+                document.getElementById('start-modal').style.display = 'none';
+            };
+
+            const createPieces = () => {
+                pieces = [];
+                groups = [];
+                const tabHeight = 0.1 * Math.min(pieceWidth, pieceHeight);
+                const margin = tabHeight;
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        const x = j * pieceWidth;
+                        const y = i * pieceHeight;
+                        const bufferW = pieceWidth + 2 * margin;
+                        const bufferH = pieceHeight + 2 * margin;
+                        const pieceImg = p.createImage(bufferW, bufferH);
+                        let copyX = Math.max(0, x - margin);
+                        let copyY = Math.max(0, y - margin);
+                        let copyW = Math.min(img.width - copyX, bufferW);
+                        let copyH = Math.min(img.height - copyY, bufferH);
+                        pieceImg.copy(img, copyX, copyY, copyW, copyH, margin - (x - copyX), margin - (y - copyY), copyW, copyH);
+                        const piece = new Piece(p, pieceImg, 0, 0, pieceWidth, pieceHeight, i, j, rows, cols);
+                        pieces.push(piece);
+                        groups.push(new PieceGroup(piece));
+                    }
+                }
+            };
+            
+            const scatterPieces = () => {
+                const placedBounds = [];
+                const margin = 20;
+                
+                groups.forEach(group => {
+                    let placed = false;
+                    while (!placed) {
+                        const piece = group.pieces[0];
+                        const randX = p.random(margin, p.width - piece.w - margin);
+                        const randY = p.random(margin, p.height - piece.h - margin);
+                        const newBounds = { x: randX, y: randY, w: piece.w, h: piece.h };
+                        
+                        let overlaps = false;
+                        for (const b of placedBounds) {
+                            if (
+                                newBounds.x < b.x + b.w + margin &&
+                                newBounds.x + newBounds.w + margin > b.x &&
+                                newBounds.y < b.y + b.h + margin &&
+                                newBounds.y + newBounds.h + margin > b.y
+                            ) {
+                                overlaps = true;
+                                break;
+                            }
+                        }
+
+                        if (!overlaps) {
+                            piece.x = randX;
+                            piece.y = randY;
+                            placedBounds.push(newBounds);
+                            placed = true;
+                        }
+                    }
+                });
+            };
+
+            p.mousePressed = () => {
+                if (gameState !== 'playing') return;
+                
+                isDragging = false;
+                for (let i = groups.length - 1; i >= 0; i--) {
+                    if (groups[i].isMouseOver()) {
+                        selectedGroup = groups[i];
+                        
+                        // Get the bounding box of the selected group
+                        const groupBounds = selectedGroup.getBounds();
+
+                        // Calculate offset relative to the group's top-left corner
+                        // This makes the entire group move smoothly from where it was clicked
+                        offsetX = p.mouseX - groupBounds.minX;
+                        offsetY = p.mouseY - groupBounds.minY;
+                        
+                        // Bring the selected group to the front
+                        groups.splice(i, 1);
+                        groups.push(selectedGroup);
+                        
+                        isDragging = true;
+                        return;
+                    }
+                }
+            };
+
+            p.mouseDragged = () => {
+                if (selectedGroup && isDragging) {
+                    const groupBounds = selectedGroup.getBounds();
+                    
+                    // Calculate the target top-left corner for the group
+                    const targetX = p.mouseX - offsetX;
+                    const targetY = p.mouseY - offsetY;
+
+                    // Calculate the delta needed to move the group's current top-left to the target
+                    const dx = targetX - groupBounds.minX;
+                    const dy = targetY - groupBounds.minY;
+
+                    selectedGroup.move(dx, dy);
+                }
+            };
+
+            p.mouseReleased = () => {
+                if (selectedGroup) {
+                    checkForSnap(selectedGroup);
+                    selectedGroup = null;
+                    isDragging = false;
+                    
+                    if (groups.length === 1 && pieces.length > 1) {
+                        gameState = 'finished';
+                    }
+                }
+            };
+
+            const checkForSnap = (movedGroup) => {
+                const otherGroups = groups.filter(g => g !== movedGroup);
+                let snapped = false;
+
+                // Iterate through pieces of the moved group (g1)
+                for (const p1 of movedGroup.pieces) {
+                    // Iterate through other groups (g2)
+                    for (const g2 of otherGroups) {
+                        // Iterate through pieces of the other group (p2)
+                        for (const p2 of g2.pieces) {
+                            // Check for horizontal snap (p2 to the right of p1)
+                            if (p1.origI === p2.origI && p1.origJ + 1 === p2.origJ) {
+                                if (p.abs((p1.x + p1.w) - p2.x) < SNAP_TOLERANCE && p.abs(p1.y - p2.y) < SNAP_TOLERANCE) {
+                                    snapGroups(movedGroup, g2, p1, p2, 'horizontal');
+                                    snapped = true;
+                                    break;
+                                }
+                            }
+                            // Check for vertical snap (p2 below p1)
+                            if (p1.origJ === p2.origJ && p1.origI + 1 === p2.origI) {
+                                if (p.abs((p1.y + p1.h) - p2.y) < SNAP_TOLERANCE && p.abs(p1.x - p2.x) < SNAP_TOLERANCE) {
+                                    snapGroups(movedGroup, g2, p1, p2, 'vertical');
+                                    snapped = true;
+                                    break;
+                                }
+                            }
+                            
+                            // *** ADDED: Reverse check for snapping (p1 to the right of p2) ***
+                            if (p2.origI === p1.origI && p2.origJ + 1 === p1.origJ) {
+                                if (p.abs((p2.x + p2.w) - p1.x) < SNAP_TOLERANCE && p.abs(p2.y - p1.y) < SNAP_TOLERANCE) {
+                                    snapGroups(g2, movedGroup, p2, p1, 'horizontal'); // g2 moves towards g1
+                                    snapped = true;
+                                    break;
+                                }
+                            }
+                            // *** ADDED: Reverse check for snapping (p1 below p2) ***
+                            if (p2.origJ === p1.origJ && p2.origI + 1 === p1.origI) {
+                                if (p.abs((p2.y + p2.h) - p1.y) < SNAP_TOLERANCE && p.abs(p2.x - p1.x) < SNAP_TOLERANCE) {
+                                    snapGroups(g2, movedGroup, p2, p1, 'vertical'); // g2 moves towards g1
+                                    snapped = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (snapped) break;
+                    }
+                    if (snapped) break;
+                }
+            };
+            
+            const snapGroups = (g1, g2, p1, p2, direction) => {
+                let dx = 0;
+                let dy = 0;
+
+                if (direction === 'horizontal') {
+                    // Calculate effective edges
+                    let effectiveP1Right = p1.x + p1.w;
+                    if (p1.origJ < cols-1) {
+                        if (p1.hasTabRight) effectiveP1Right += p1.tabHeight;
+                        else effectiveP1Right -= p1.tabHeight;
+                    }
+                    let effectiveP2Left = p2.x;
+                    if (p2.origJ > 0) {
+                        if (p2.hasTabLeft) effectiveP2Left -= p2.tabHeight;
+                        else effectiveP2Left += p2.tabHeight;
+                    }
+                    dx = effectiveP1Right - effectiveP2Left;
+                    dy = p1.y - p2.y;
+                } else { // vertical
+                    let effectiveP1Bottom = p1.y + p1.h;
+                    if (p1.origI < rows-1) {
+                        if (p1.hasTabBottom) effectiveP1Bottom += p1.tabHeight;
+                        else effectiveP1Bottom -= p1.tabHeight;
+                    }
+                    let effectiveP2Top = p2.y;
+                    if (p2.origI > 0) {
+                        if (p2.hasTabTop) effectiveP2Top -= p2.tabHeight;
+                        else effectiveP2Top += p2.tabHeight;
+                    }
+                    dy = effectiveP1Bottom - effectiveP2Top;
+                    dx = p1.x - p2.x;
+                }
+
+                g2.move(dx, dy);
+
+                g1.merge(g2);
+
+                const index = groups.indexOf(g2);
+                if (index > -1) {
+                    groups.splice(index, 1);
+                }
+            };
+            
+            p.windowResized = () => {
+                const canvasContainer = document.getElementById('p5-canvas-container');
+                p.resizeCanvas(canvasContainer.offsetWidth, canvasContainer.offsetHeight);
+                if (gameState === 'playing') {
+                    scatterPieces(); // Re-scatter pieces on resize to fit new dimensions
+                }
+            };
+            
+            window.p5Instance = p;
+        };
+        
+        // --- UI Event Handlers ---
+        document.addEventListener('DOMContentLoaded', () => {
+            new p5(sketch, 'p5-canvas-container');
+
+            const startBtn = document.getElementById('start-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+            const createPuzzleBtn = document.getElementById('create-puzzle-btn');
+            const imageUpload = document.getElementById('image-upload');
+            const pieceCountSelect = document.getElementById('piece-count');
+            const menu = document.getElementById('menu');
+            const modal = document.getElementById('start-modal');
+            const modalError = document.getElementById('modal-error');
+            const loadingMessage = document.getElementById('loading-message');
+
+            startBtn.addEventListener('click', () => {
+                menu.style.display = 'none';
+                modal.style.display = 'block';
+            });
+
+            resetBtn.addEventListener('click', () => {
+                window.location.reload();
+            });
+            
+            cancelBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                menu.style.display = 'flex';
+                modalError.textContent = '';
+                imageUpload.value = '';
+            });
+
+            createPuzzleBtn.addEventListener('click', () => {
+                const file = imageUpload.files[0];
+                if (!file) {
+                    modalError.textContent = 'Please select an image file.';
+                    return;
+                }
+                
+                modalError.textContent = '';
+                modal.style.display = 'none';
+                loadingMessage.style.display = 'block';
+
+                const pieceCount = parseInt(pieceCountSelect.value, 10);
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    window.p5Instance.loadImage(e.target.result, (loadedImg) => {
+                        window.p5Instance.startPuzzle(loadedImg, pieceCount);
+                        loadingMessage.style.display = 'none';
+                    }, (err) => {
+                        loadingMessage.style.display = 'none';
+                        menu.style.display = 'flex';
+                        modalError.textContent = 'Failed to load image. Please try another one.';
+                        console.error('Image loading error:', err);
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+    </script>
+</body>
+</html>
