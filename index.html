@@ -36,24 +36,26 @@
         /* Menu and Modal Styling */
         #menu, #start-modal {
             position: absolute;
-            top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateX(-50%);
             z-index: 10;
-            padding: 2rem;
+            padding: 1rem;
             background-color: #2d3748; /* Darker gray background */
             border-radius: 0.5rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             text-align: center;
         }
         #menu {
+            top: 1rem; /* Positioned at the top */
             display: flex;
-            flex-direction: column;
+            flex-direction: row; /* Changed to row for buttons */
             align-items: center;
             gap: 1rem;
         }
         #start-modal {
             display: none;
+            top: 50%;
+            transform: translate(-50%, -50%);
             width: 100%;
             max-width: 28rem;
         }
@@ -71,7 +73,6 @@
         }
         #menu button, #start-modal button, #menu a {
             transition: all 0.2s ease-in-out;
-            width: 100%;
             font-weight: bold;
             padding: 0.75rem 1.5rem;
             border-radius: 0.5rem;
@@ -80,6 +81,10 @@
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
+        }
+        #menu button:disabled {
+            background-color: #6b7280;
+            cursor: not-allowed;
         }
         #start-modal .space-y-6 > * + * {
             margin-top: 1.5rem;
@@ -153,7 +158,7 @@
             background-color: #dc2626;
             color: white;
         }
-        #reset-btn:hover { background-color: #b91c1c; }
+        #reset-btn:hover:not(:disabled) { background-color: #b91c1c; }
 
         #modal-error {
             color: #ef4444;
@@ -179,9 +184,8 @@
     <div id="main-container">
         <!-- Initial menu -->
         <div id="menu">
-            <h1>Jigsaw Puzzle</h1>
-            <button id="start-btn">Start Puzzles</button>
-            <button id="reset-btn">Reset</button>
+            <button id="start-btn">New Game</button>
+            <button id="reset-btn" disabled>Reset</button>
         </div>
 
         <!-- Image upload modal -->
@@ -230,102 +234,97 @@
         let isDragging = false;
         let gameState = 'menu';
 
-        const SNAP_TOLERANCE = 15; // Increased from 20 to 24 (effectively 20 +/- 4)
+        const SNAP_TOLERANCE = 15;
         const GLOW_DURATION = 60;
 
-        const generatePath = (w, h, i, j, rows, cols, tabHeight, margin) => {
-            let points = [];
-            // Top edge
-            points.push({x: margin, y: margin});
-            points.push({x: margin + w/3, y: margin});
-            if (i > 0) {
-                let isTab = (i % 2 === 0);
-                if (isTab) {
-                    // Rounded tab up
-                    points.push({x: margin + w/3 + w/12, y: margin - tabHeight * 0.2});
-                    points.push({x: margin + w/2 - w/12, y: margin - tabHeight * 0.8});
-                    points.push({x: margin + w/2, y: margin - tabHeight});
-                    points.push({x: margin + w/2 + w/12, y: margin - tabHeight * 0.8});
-                    points.push({x: margin + 2*w/3 - w/12, y: margin - tabHeight * 0.2});
-                } else {
-                    // Rounded cutout down
-                    points.push({x: margin + w/3 + w/12, y: margin + tabHeight * 0.2});
-                    points.push({x: margin + w/2 - w/12, y: margin + tabHeight * 0.8});
-                    points.push({x: margin + w/2, y: margin + tabHeight});
-                    points.push({x: margin + w/2 + w/12, y: margin + tabHeight * 0.8});
-                    points.push({x: margin + 2*w/3 - w/12, y: margin + tabHeight * 0.2});
-                }
-            }
-            points.push({x: margin + 2*w/3, y: margin});
-            points.push({x: margin + w, y: margin});
-            // Right edge
-            points.push({x: margin + w, y: margin + h/3});
-            if (j < cols-1) {
-                let isTab = (j % 2 === 0);
-                if (isTab) {
-                    // Rounded tab right
-                    points.push({x: margin + w + tabHeight * 0.2, y: margin + h/3 + h/12});
-                    points.push({x: margin + w + tabHeight * 0.8, y: margin + h/2 - h/12});
-                    points.push({x: margin + w + tabHeight, y: margin + h/2});
-                    points.push({x: margin + w + tabHeight * 0.8, y: margin + h/2 + h/12});
-                    points.push({x: margin + w + tabHeight * 0.2, y: margin + 2*h/3 - h/12});
-                } else {
-                    // Rounded cutout left
-                    points.push({x: margin + w - tabHeight * 0.2, y: margin + h/3 + h/12});
-                    points.push({x: margin + w - tabHeight * 0.8, y: margin + h/2 - h/12});
-                    points.push({x: margin + w - tabHeight, y: margin + h/2});
-                    points.push({x: margin + w - tabHeight * 0.8, y: margin + h/2 + h/12});
-                    points.push({x: margin + w - tabHeight * 0.2, y: margin + 2*h/3 - h/12});
-                }
-            }
-            points.push({x: margin + w, y: margin + 2*h/3});
-            points.push({x: margin + w, y: margin + h});
-            // Bottom edge
-            points.push({x: margin + 2*w/3, y: margin + h});
-            if (i < rows-1) {
-                let isTab = (i % 2 === 0);
-                if (isTab) {
-                    // Rounded tab down
-                    points.push({x: margin + 2*w/3 - w/12, y: margin + h + tabHeight * 0.2});
-                    points.push({x: margin + w/2 + w/12, y: margin + h + tabHeight * 0.8});
-                    points.push({x: margin + w/2, y: margin + h + tabHeight});
-                    points.push({x: margin + w/2 - w/12, y: margin + h + tabHeight * 0.8});
-                    points.push({x: margin + w/3 + w/12, y: margin + h + tabHeight * 0.2});
-                } else {
-                    // Rounded cutout up
-                    points.push({x: margin + 2*w/3 - w/12, y: margin + h - tabHeight * 0.2});
-                    points.push({x: margin + w/2 + w/12, y: margin + h - tabHeight * 0.8});
-                    points.push({x: margin + w/2, y: margin + h - tabHeight});
-                    points.push({x: margin + w/2 - w/12, y: margin + h - tabHeight * 0.8});
-                    points.push({x: margin + w/3 + w/12, y: margin + h - tabHeight * 0.2});
-                }
-            }
-            points.push({x: margin + w/3, y: margin + h});
-            points.push({x: margin, y: margin + h});
-            // Left edge
-            points.push({x: margin, y: margin + 2*h/3});
-            if (j > 0) {
-                let isTab = (j % 2 === 0);
-                if (isTab) {
-                    // Rounded tab left
-                    points.push({x: margin - tabHeight * 0.2, y: margin + 2*h/3 - h/12});
-                    points.push({x: margin - tabHeight * 0.8, y: margin + h/2 + h/12});
-                    points.push({x: margin - tabHeight, y: margin + h/2});
-                    points.push({x: margin - tabHeight * 0.8, y: margin + h/2 - h/12});
-                    points.push({x: margin - tabHeight * 0.2, y: margin + h/3 + h/12});
-                } else {
-                    // Rounded cutout right
-                    points.push({x: margin + tabHeight * 0.2, y: margin + 2*h/3 - h/12});
-                    points.push({x: margin + tabHeight * 0.8, y: margin + h/2 + h/12});
-                    points.push({x: margin + tabHeight, y: margin + h/2});
-                    points.push({x: margin + tabHeight * 0.8, y: margin + h/2 - h/12});
-                    points.push({x: margin + tabHeight * 0.2, y: margin + h/3 + h/12});
-                }
-            }
-            points.push({x: margin, y: margin + h/3});
-            return points;
+        const controlPoints = [
+            {cx1: 0, cy1: 0, cx2: 35, cy2: -15, ex: 37, ey: -5},
+            {cx1: 37, cy1: -5, cx2: 40, cy2: 0, ex: 38, ey: 5},
+            {cx1: 38, cy1: 5, cx2: 20, cy2: 20, ex: 50, ey: 20},
+            {cx1: 50, cy1: 20, cx2: 80, cy2: 20, ex: 62, ey: 5},
+            {cx1: 62, cy1: 5, cx2: 60, cy2: 0, ex: 63, ey: -5},
+            {cx1: 63, cy1: -5, cx2: 65, cy2: -15, ex: 100, ey: 0},
+        ];
+
+        const addFlatEdge = (commands, endX, endY) => {
+            commands.push({type: 'vertex', x: endX, y: endY});
         };
-        
+
+        const addCurvedEdge = (commands, baseX, baseY, alongDx, alongDy, outDx, outDy, signOut, scaleAlong, scaleOut) => {
+            for (let bez of controlPoints) {
+                commands.push({
+                    type: 'bezier',
+                    c1x: baseX + bez.cx1 * scaleAlong * alongDx + bez.cy1 * scaleOut * signOut * outDx,
+                    c1y: baseY + bez.cx1 * scaleAlong * alongDy + bez.cy1 * scaleOut * signOut * outDy,
+                    c2x: baseX + bez.cx2 * scaleAlong * alongDx + bez.cy2 * scaleOut * signOut * outDx,
+                    c2y: baseY + bez.cx2 * scaleAlong * alongDy + bez.cy2 * scaleOut * signOut * outDy,
+                    ax: baseX + bez.ex * scaleAlong * alongDx + bez.ey * scaleOut * signOut * outDx,
+                    ay: baseY + bez.ex * scaleAlong * alongDy + bez.ey * scaleOut * signOut * outDy,
+                });
+            }
+        };
+
+        const generatePath = (w, h, i, j, rows, cols, tabHeight, margin) => {
+            let commands = [];
+            // Start at top-left
+            commands.push({type: 'vertex', x: margin, y: margin});
+
+            // Top edge
+            const topBaseX = margin, topBaseY = margin;
+            const topAlongDx = 1, topAlongDy = 0;
+            const topOutDx = 0, topOutDy = -1;
+            const topScaleAlong = w / 100;
+            const scaleOut = tabHeight / 20;
+            if (i > 0) {
+                const isTab = (i % 2 === 0);
+                const signOut = isTab ? 1 : -1;
+                addCurvedEdge(commands, topBaseX, topBaseY, topAlongDx, topAlongDy, topOutDx, topOutDy, signOut, topScaleAlong, scaleOut);
+            } else {
+                addFlatEdge(commands, margin + w, margin);
+            }
+
+            // Right edge
+            const rightBaseX = margin + w, rightBaseY = margin;
+            const rightAlongDx = 0, rightAlongDy = 1;
+            const rightOutDx = 1, rightOutDy = 0;
+            const rightScaleAlong = h / 100;
+            if (j < cols - 1) {
+                const isTab = (j % 2 === 0);
+                const signOut = isTab ? 1 : -1;
+                addCurvedEdge(commands, rightBaseX, rightBaseY, rightAlongDx, rightAlongDy, rightOutDx, rightOutDy, signOut, rightScaleAlong, scaleOut);
+            } else {
+                addFlatEdge(commands, margin + w, margin + h);
+            }
+
+            // Bottom edge
+            const bottomBaseX = margin + w, bottomBaseY = margin + h;
+            const bottomAlongDx = -1, bottomAlongDy = 0;
+            const bottomOutDx = 0, bottomOutDy = 1;
+            const bottomScaleAlong = w / 100;
+            if (i < rows - 1) {
+                const isTab = (i % 2 === 0);
+                const signOut = isTab ? 1 : -1;
+                addCurvedEdge(commands, bottomBaseX, bottomBaseY, bottomAlongDx, bottomAlongDy, bottomOutDx, bottomOutDy, signOut, bottomScaleAlong, scaleOut);
+            } else {
+                addFlatEdge(commands, margin, margin + h);
+            }
+
+            // Left edge
+            const leftBaseX = margin, leftBaseY = margin + h;
+            const leftAlongDx = 0, leftAlongDy = -1;
+            const leftOutDx = -1, leftOutDy = 0;
+            const leftScaleAlong = h / 100;
+            if (j > 0) {
+                const isTab = (j % 2 === 0);
+                const signOut = isTab ? 1 : -1;
+                addCurvedEdge(commands, leftBaseX, leftBaseY, leftAlongDx, leftAlongDy, leftOutDx, leftOutDy, signOut, leftScaleAlong, scaleOut);
+            } else {
+                addFlatEdge(commands, margin, margin);
+            }
+
+            return commands;
+        };
+
         p.preload = () => {
             // p5.js functions
         };
@@ -341,21 +340,21 @@
             if (gameState === 'playing') {
                 p.background(31, 41, 55);
                 p.imageMode(p.CORNER);
-                
+
                 // Draw groups in a specific order to bring the selected one to the front
                 groups.forEach(group => {
                     if (group !== selectedGroup) {
                         group.draw();
                     }
                 });
-                
+
                 if (selectedGroup) {
                     selectedGroup.draw();
                 }
             } else if (gameState === 'finished') {
                 p.background(31, 41, 55);
                 groups[0].draw();
-                
+
                 p.fill(255);
                 p.textSize(64);
                 p.textAlign(p.CENTER, p.CENTER);
@@ -376,9 +375,9 @@
                 this.rows = rows;
                 this.cols = cols;
                 this.hasTabTop = i > 0 && (i % 2 === 0);
-                this.hasTabBottom = i < rows-1 && (i % 2 === 0);
+                this.hasTabBottom = i < rows - 1 && (i % 2 === 0);
                 this.hasTabLeft = j > 0 && (j % 2 === 0);
-                this.hasTabRight = j < cols-1 && (j % 2 === 0);
+                this.hasTabRight = j < cols - 1 && (j % 2 === 0);
                 this.tabHeight = 0.1 * Math.min(w, h);
                 this.margin = this.tabHeight;
                 this.bufferW = w + 2 * this.margin;
@@ -386,14 +385,16 @@
                 this.buffer = this.p.createGraphics(this.bufferW, this.bufferH);
                 this.buffer.fill(255);
                 this.buffer.noStroke();
-                let points = generatePath(w, h, i, j, rows, cols, this.tabHeight, this.margin);
+                let commands = generatePath(w, h, i, j, rows, cols, this.tabHeight, this.margin);
                 this.buffer.beginShape();
-                for (let pt of points) {
-                    this.buffer.curveVertex(pt.x, pt.y);
+                for (let cmd of commands) {
+                    if (cmd.type === 'vertex') {
+                        this.buffer.vertex(cmd.x, cmd.y);
+                    } else if (cmd.type === 'bezier') {
+                        this.buffer.bezierVertex(cmd.c1x, cmd.c1y, cmd.c2x, cmd.c2y, cmd.ax, cmd.ay);
+                    }
                 }
-                this.buffer.curveVertex(points[0].x, points[0].y);
-                this.buffer.curveVertex(points[1].x, points[1].y);
-                this.buffer.endShape();
+                this.buffer.endShape(this.p.CLOSE);
                 this.maskImg = this.buffer.get();
                 this.pieceImg = img;
                 this.pieceImg.mask(this.maskImg);
@@ -414,7 +415,7 @@
                 this.pieces = [initialPiece];
                 this.glow = 0;
             }
-            
+
             draw() {
                 if (this.glow > 0) {
                     this.drawGlow();
@@ -422,13 +423,13 @@
                 }
                 this.pieces.forEach(piece => piece.draw());
             }
-            
+
             drawGlow() {
                 const bounds = this.getBounds();
                 const alpha = p.map(this.glow, 0, GLOW_DURATION, 0, 150);
                 p.noStroke();
                 p.fill(0, 150, 255, alpha);
-                
+
                 p.drawingContext.shadowBlur = 32;
                 p.drawingContext.shadowColor = 'rgba(0, 150, 255, 0.7)';
                 p.rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 8);
@@ -491,18 +492,20 @@
             img.resize(Math.floor(img.width * scale), Math.floor(img.height * scale));
             puzzleWidth = img.width;
             puzzleHeight = img.height;
-            
+
             pieceWidth = puzzleWidth / cols;
             pieceHeight = puzzleHeight / rows;
 
             const canvasWidth = Math.max(p.windowWidth, puzzleWidth + 200);
             const canvasHeight = Math.max(p.windowHeight, puzzleHeight + 200);
             p.resizeCanvas(canvasWidth, canvasHeight);
-            
+
             createPieces();
             scatterPieces();
 
-            document.getElementById('menu').style.display = 'none';
+            // Enable the reset button after the game starts
+            document.getElementById('reset-btn').disabled = false;
+
             document.getElementById('start-modal').style.display = 'none';
         };
 
@@ -529,11 +532,11 @@
                 }
             }
         };
-        
+
         const scatterPieces = () => {
             const placedBounds = [];
             const margin = 20;
-            
+
             groups.forEach(group => {
                 let placed = false;
                 while (!placed) {
@@ -541,7 +544,7 @@
                     const randX = p.random(margin, p.width - piece.w - margin);
                     const randY = p.random(margin, p.height - piece.h - margin);
                     const newBounds = { x: randX, y: randY, w: piece.w, h: piece.h };
-                    
+
                     let overlaps = false;
                     for (const b of placedBounds) {
                         if (
@@ -565,26 +568,34 @@
             });
         };
 
+        p.resetPuzzle = () => {
+            // Reset groups to individual pieces
+            groups = pieces.map(piece => new PieceGroup(piece));
+            scatterPieces();
+            gameState = 'playing';
+            selectedGroup = null;
+            isDragging = false;
+        };
+
         p.mousePressed = () => {
             if (gameState !== 'playing') return;
-            
+
             isDragging = false;
             for (let i = groups.length - 1; i >= 0; i--) {
                 if (groups[i].isMouseOver()) {
                     selectedGroup = groups[i];
-                    
+
                     // Get the bounding box of the selected group
                     const groupBounds = selectedGroup.getBounds();
 
                     // Calculate offset relative to the group's top-left corner
-                    // This makes the entire group move smoothly from where it was clicked
                     offsetX = p.mouseX - groupBounds.minX;
                     offsetY = p.mouseY - groupBounds.minY;
-                    
+
                     // Bring the selected group to the front
                     groups.splice(i, 1);
                     groups.push(selectedGroup);
-                    
+
                     isDragging = true;
                     return;
                 }
@@ -594,7 +605,7 @@
         p.mouseDragged = () => {
             if (selectedGroup && isDragging) {
                 const groupBounds = selectedGroup.getBounds();
-                
+
                 // Calculate the target top-left corner for the group
                 const targetX = p.mouseX - offsetX;
                 const targetY = p.mouseY - offsetY;
@@ -612,7 +623,7 @@
                 checkForSnap(selectedGroup);
                 selectedGroup = null;
                 isDragging = false;
-                
+
                 if (groups.length === 1 && pieces.length > 1) {
                     gameState = 'finished';
                 }
@@ -645,19 +656,19 @@
                                 break;
                             }
                         }
-                        
-                        // *** ADDED: Reverse check for snapping (p1 to the right of p2) ***
+
+                        // Reverse check for snapping (p1 to the right of p2)
                         if (p2.origI === p1.origI && p2.origJ + 1 === p1.origJ) {
                             if (p.abs((p2.x + p2.w) - p1.x) < SNAP_TOLERANCE && p.abs(p2.y - p1.y) < SNAP_TOLERANCE) {
-                                snapGroups(g2, movedGroup, p2, p1, 'horizontal'); // g2 moves towards g1
+                                snapGroups(g2, movedGroup, p2, p1, 'horizontal');
                                 snapped = true;
                                 break;
                             }
                         }
-                        // *** ADDED: Reverse check for snapping (p1 below p2) ***
+                        // Reverse check for snapping (p1 below p2)
                         if (p2.origJ === p1.origJ && p2.origI + 1 === p1.origI) {
                             if (p.abs((p2.y + p2.h) - p1.y) < SNAP_TOLERANCE && p.abs(p2.x - p1.x) < SNAP_TOLERANCE) {
-                                snapGroups(g2, movedGroup, p2, p1, 'vertical'); // g2 moves towards g1
+                                snapGroups(g2, movedGroup, p2, p1, 'vertical');
                                 snapped = true;
                                 break;
                             }
@@ -668,7 +679,7 @@
                 if (snapped) break;
             }
         };
-        
+
         const snapGroups = (g1, g2, p1, p2, direction) => {
             let dx = 0;
             let dy = 0;
@@ -676,27 +687,23 @@
             if (direction === 'horizontal') {
                 // Calculate effective edges
                 let effectiveP1Right = p1.x + p1.w;
-                if (p1.origJ < cols-1) {
-                    if (p1.hasTabRight) effectiveP1Right += p1.tabHeight;
-                    else effectiveP1Right -= p1.tabHeight;
+                if (p1.origJ < cols - 1) {
+                    effectiveP1Right += (p1.hasTabRight ? p1.tabHeight : -p1.tabHeight);
                 }
                 let effectiveP2Left = p2.x;
                 if (p2.origJ > 0) {
-                    if (p2.hasTabLeft) effectiveP2Left -= p2.tabHeight;
-                    else effectiveP2Left += p2.tabHeight;
+                    effectiveP2Left += (p2.hasTabLeft ? -p2.tabHeight : p2.tabHeight);
                 }
                 dx = effectiveP1Right - effectiveP2Left;
                 dy = p1.y - p2.y;
             } else { // vertical
                 let effectiveP1Bottom = p1.y + p1.h;
-                if (p1.origI < rows-1) {
-                    if (p1.hasTabBottom) effectiveP1Bottom += p1.tabHeight;
-                    else effectiveP1Bottom -= p1.tabHeight;
+                if (p1.origI < rows - 1) {
+                    effectiveP1Bottom += (p1.hasTabBottom ? p1.tabHeight : -p1.tabHeight);
                 }
                 let effectiveP2Top = p2.y;
                 if (p2.origI > 0) {
-                    if (p2.hasTabTop) effectiveP2Top -= p2.tabHeight;
-                    else effectiveP2Top += p2.tabHeight;
+                    effectiveP2Top += (p2.hasTabTop ? -p2.tabHeight : p2.tabHeight);
                 }
                 dy = effectiveP1Bottom - effectiveP2Top;
                 dx = p1.x - p2.x;
@@ -711,7 +718,7 @@
                 groups.splice(index, 1);
             }
         };
-        
+
         p.windowResized = () => {
             const canvasContainer = document.getElementById('p5-canvas-container');
             p.resizeCanvas(canvasContainer.offsetWidth, canvasContainer.offsetHeight);
@@ -719,10 +726,10 @@
                 scatterPieces(); // Re-scatter pieces on resize to fit new dimensions
             }
         };
-        
+
         window.p5Instance = p;
     };
-    
+
     // --- UI Event Handlers ---
     document.addEventListener('DOMContentLoaded', () => {
         new p5(sketch, 'p5-canvas-container');
@@ -739,17 +746,17 @@
         const loadingMessage = document.getElementById('loading-message');
 
         startBtn.addEventListener('click', () => {
-            menu.style.display = 'none';
             modal.style.display = 'block';
         });
 
         resetBtn.addEventListener('click', () => {
-            window.location.reload();
+            if (!resetBtn.disabled) {
+                window.p5Instance.resetPuzzle();
+            }
         });
-        
+
         cancelBtn.addEventListener('click', () => {
             modal.style.display = 'none';
-            menu.style.display = 'flex';
             modalError.textContent = '';
             imageUpload.value = '';
         });
@@ -760,14 +767,14 @@
                 modalError.textContent = 'Please select an image file.';
                 return;
             }
-            
+
             modalError.textContent = '';
             modal.style.display = 'none';
             loadingMessage.style.display = 'block';
 
             const pieceCount = parseInt(pieceCountSelect.value, 10);
             const reader = new FileReader();
-            
+
             reader.onload = (e) => {
                 window.p5Instance.loadImage(e.target.result, (loadedImg) => {
                     window.p5Instance.startPuzzle(loadedImg, pieceCount);
@@ -779,13 +786,10 @@
                     console.error('Image loading error:', err);
                 });
             };
+
             reader.readAsDataURL(file);
         });
     });
 </script>
-
-
-
-
 </body>
 </html>
