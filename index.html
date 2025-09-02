@@ -395,7 +395,7 @@
                 this.hasTabBottom = i < rows - 1 && (i % 2 === 0);
                 this.hasTabLeft = j > 0 && (j % 2 === 0);
                 this.hasTabRight = j < cols - 1 && (j % 2 === 0);
-                this.tabHeight = 0.1 * Math.min(w, h);
+                this.tabHeight = 0.12 * Math.min(w, h);
                 this.margin = this.tabHeight;
                 this.bufferW = w + 2 * this.margin;
                 this.bufferH = h + 2 * this.margin;
@@ -529,7 +529,7 @@
         const createPieces = () => {
             pieces = [];
             groups = [];
-            const tabHeight = 0.1 * Math.min(pieceWidth, pieceHeight);
+            const tabHeight = 0.12 * Math.min(pieceWidth, pieceHeight);
             const margin = tabHeight;
             for (let i = 0; i < rows; i++) {
                 for (let j = 0; j < cols; j++) {
@@ -821,8 +821,6 @@
         });
     });
 </script>
-
-
 
 </body>
 </html>
