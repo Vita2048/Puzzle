@@ -11,7 +11,6 @@
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden;
             font-family: 'Inter', sans-serif;
             background-color: #1a202c; /* Dark background */
             color: white;
@@ -19,6 +18,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            overflow: hidden; /* Prevent body scrollbars */
         }
         #main-container {
             position: relative;
@@ -204,8 +204,8 @@
                             <option value="30">30</option>
                             <option value="40">40</option>
                             <option value="50">50</option>
-							<option value="70">70</option>
-							<option value="100">100</option>
+                            <option value="70">70</option>
+                            <option value="100">100</option>
                         </select>
                     </div>
                 </div>
@@ -230,7 +230,8 @@
         let groups = [];
         let pieceWidth, pieceHeight;
         let cols, rows;
-        let puzzleWidth, puzzleHeight;
+        let puzzleWidth, puzzleHeight, boardWidth, boardHeight;
+        let scatterCols, scatterRows;
         let selectedGroup = null;
         let offsetX, offsetY;
         let isDragging = false;
@@ -336,6 +337,7 @@
             const c = p.createCanvas(canvasContainer.offsetWidth, canvasContainer.offsetHeight);
             c.parent('p5-canvas-container');
             p.background(31, 41, 55);
+            canvasContainer.style.overflow = 'auto';
         };
 
         p.draw = () => {
@@ -481,6 +483,19 @@
             }
         }
 
+        const centerCompletedPuzzle = () => {
+            if (groups.length > 0) {
+                const bounds = groups[0].getBounds();
+                const puzzleW = bounds.maxX - bounds.minX;
+                const puzzleH = bounds.maxY - bounds.minY;
+                const centerX = (p.width - puzzleW) / 2;
+                const centerY = (p.height - puzzleH) / 2;
+                const dx = centerX - bounds.minX;
+                const dy = centerY - bounds.minY;
+                groups[0].move(dx, dy);
+            }
+        };
+
         p.startPuzzle = (uploadedImg, pieceCount) => {
             img = uploadedImg;
             gameState = 'playing';
@@ -513,9 +528,29 @@
             pieceWidth = puzzleWidth / cols;
             pieceHeight = puzzleHeight / rows;
 
-            const canvasWidth = Math.max(p.windowWidth, puzzleWidth + 200);
-            const canvasHeight = Math.max(p.windowHeight, puzzleHeight + 200);
+            // --- Board and Canvas Sizing Logic ---
+            const pieceSpacingMultiplier = 1.5; // 50% spacing
+            const paddedPieceW = pieceWidth * pieceSpacingMultiplier;
+            const paddedPieceH = pieceHeight * pieceSpacingMultiplier;
+
+            // Find the most compact grid layout (closest to square) for scattering pieces
+            let sCols = Math.floor(Math.sqrt(pieceCount));
+            while (pieceCount % sCols !== 0) {
+                sCols--;
+            }
+            scatterCols = sCols;
+            scatterRows = pieceCount / sCols;
+            
+            boardWidth = scatterCols * paddedPieceW;
+            boardHeight = scatterRows * paddedPieceH;
+
+            // SET canvas dimensions. It should be at least as big as the window,
+            // and also at least as big as our logical board. This makes it scrollable
+            // on small screens but fill large screens.
+            const canvasWidth = Math.max(p.windowWidth, boardWidth);
+            const canvasHeight = Math.max(p.windowHeight, boardHeight);
             p.resizeCanvas(canvasWidth, canvasHeight);
+
 
             createPieces();
             scatterPieces();
@@ -551,37 +586,34 @@
         };
 
         const scatterPieces = () => {
-            const placedBounds = [];
-            const margin = 20;
+            const menuHeight = document.getElementById('menu')?.offsetHeight || 0;
+            const pieceSpacingMultiplier = 1.5;
+            const paddedPieceW = pieceWidth * pieceSpacingMultiplier;
+            const paddedPieceH = pieceHeight * pieceSpacingMultiplier;
 
-            groups.forEach(group => {
-                let placed = false;
-                while (!placed) {
-                    const piece = group.pieces[0];
-                    const randX = p.random(margin, p.width - piece.w - margin);
-                    const randY = p.random(margin, p.height - piece.h - margin);
-                    const newBounds = { x: randX, y: randY, w: piece.w, h: piece.h };
+            // Center the logical board area within the canvas.
+            const boardX = Math.max(0, (p.width - boardWidth) / 2);
+            let boardY = Math.max(0, (p.height - boardHeight) / 2);
 
-                    let overlaps = false;
-                    for (const b of placedBounds) {
-                        if (
-                            newBounds.x < b.x + b.w + margin &&
-                            newBounds.x + newBounds.w + margin > b.x &&
-                            newBounds.y < b.y + b.h + margin &&
-                            newBounds.y + newBounds.h + margin > b.y
-                        ) {
-                            overlaps = true;
-                            break;
-                        }
-                    }
+            // Ensure the board is below the menu
+            if (boardY < menuHeight + 20) {
+                boardY = menuHeight + 20;
+            }
 
-                    if (!overlaps) {
-                        piece.x = randX;
-                        piece.y = randY;
-                        placedBounds.push(newBounds);
-                        placed = true;
-                    }
-                }
+            // Shuffle groups for random placement in the grid
+            p.shuffle(groups, true);
+
+            groups.forEach((group, index) => {
+                const piece = group.pieces[0];
+                const gridCol = index % scatterCols;
+                const gridRow = Math.floor(index / scatterCols);
+
+                // Center the piece inside its padded grid cell
+                const pieceX = boardX + (gridCol * paddedPieceW) + (paddedPieceW - piece.w) / 2;
+                const pieceY = boardY + (gridRow * paddedPieceH) + (paddedPieceH - piece.h) / 2;
+
+                piece.x = pieceX;
+                piece.y = pieceY;
             });
         };
 
@@ -642,16 +674,7 @@
                 isDragging = false;
 
                 if (groups.length === 1 && pieces.length > 1) {
-                    // Center the completed puzzle
-                    const bounds = groups[0].getBounds();
-                    const puzzleW = bounds.maxX - bounds.minX;
-                    const puzzleH = bounds.maxY - bounds.minY;
-                    const centerX = (p.width - puzzleW) / 2;
-                    const centerY = (p.height - puzzleH) / 2;
-                    const dx = centerX - bounds.minX;
-                    const dy = centerY - bounds.minY;
-                    groups[0].move(dx, dy);
-
+                    centerCompletedPuzzle();
                     gameState = 'finished';
                 }
             }
@@ -749,14 +772,6 @@
             }
         };
 
-        p.windowResized = () => {
-            const canvasContainer = document.getElementById('p5-canvas-container');
-            p.resizeCanvas(canvasContainer.offsetWidth, canvasContainer.offsetHeight);
-            if (gameState === 'playing') {
-                scatterPieces(); // Re-scatter pieces on resize to fit new dimensions
-            }
-        };
-
         window.p5Instance = p;
     };
 
@@ -822,5 +837,7 @@
     });
 </script>
 
+
 </body>
 </html>
+
