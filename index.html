@@ -357,10 +357,25 @@
                 p.background(31, 41, 55);
                 groups[0].draw();
 
+                const bounds = groups[0].getBounds();
+                const textX = p.width / 2;
+                const textSizeVal = 64;
+                const gap = 20;
+                const textY = bounds.minY - gap - (textSizeVal / 2);
+
                 p.fill(255);
-                p.textSize(64);
+                p.textSize(textSizeVal);
                 p.textAlign(p.CENTER, p.CENTER);
-                p.text("You Win!", p.width / 2, p.height / 2);
+
+                // Glow effect
+                const glowAlpha = 255 * (p.sin(p.frameCount * 0.05) * 0.5 + 0.5);
+                p.drawingContext.shadowBlur = 30;
+                p.drawingContext.shadowColor = `rgba(0, 150, 255, ${glowAlpha / 255})`;
+
+                p.text("You Win!", textX, textY);
+
+                // Reset shadow
+                p.drawingContext.shadowBlur = 0;
             }
         };
 
@@ -627,6 +642,16 @@
                 isDragging = false;
 
                 if (groups.length === 1 && pieces.length > 1) {
+                    // Center the completed puzzle
+                    const bounds = groups[0].getBounds();
+                    const puzzleW = bounds.maxX - bounds.minX;
+                    const puzzleH = bounds.maxY - bounds.minY;
+                    const centerX = (p.width - puzzleW) / 2;
+                    const centerY = (p.height - puzzleH) / 2;
+                    const dx = centerX - bounds.minX;
+                    const dy = centerY - bounds.minY;
+                    groups[0].move(dx, dy);
+
                     gameState = 'finished';
                 }
             }
