@@ -645,7 +645,7 @@
                         // Check for horizontal snap (p2 to the right of p1)
                         if (p1.origI === p2.origI && p1.origJ + 1 === p2.origJ) {
                             if (p.abs((p1.x + p1.w) - p2.x) < SNAP_TOLERANCE && p.abs(p1.y - p2.y) < SNAP_TOLERANCE) {
-                                snapGroups(movedGroup, g2, p1, p2, 'horizontal');
+                                snapGroups(movedGroup, g2, p1, p2, 'horizontal', movedGroup);
                                 snapped = true;
                                 break;
                             }
@@ -653,7 +653,7 @@
                         // Check for vertical snap (p2 below p1)
                         if (p1.origJ === p2.origJ && p1.origI + 1 === p2.origI) {
                             if (p.abs((p1.y + p1.h) - p2.y) < SNAP_TOLERANCE && p.abs(p1.x - p2.x) < SNAP_TOLERANCE) {
-                                snapGroups(movedGroup, g2, p1, p2, 'vertical');
+                                snapGroups(movedGroup, g2, p1, p2, 'vertical', movedGroup);
                                 snapped = true;
                                 break;
                             }
@@ -662,7 +662,7 @@
                         // Reverse check for snapping (p1 to the right of p2)
                         if (p2.origI === p1.origI && p2.origJ + 1 === p1.origJ) {
                             if (p.abs((p2.x + p2.w) - p1.x) < SNAP_TOLERANCE && p.abs(p2.y - p1.y) < SNAP_TOLERANCE) {
-                                snapGroups(g2, movedGroup, p2, p1, 'horizontal');
+                                snapGroups(g2, movedGroup, p2, p1, 'horizontal', movedGroup);
                                 snapped = true;
                                 break;
                             }
@@ -670,7 +670,7 @@
                         // Reverse check for snapping (p1 below p2)
                         if (p2.origJ === p1.origJ && p2.origI + 1 === p1.origI) {
                             if (p.abs((p2.y + p2.h) - p1.y) < SNAP_TOLERANCE && p.abs(p2.x - p1.x) < SNAP_TOLERANCE) {
-                                snapGroups(g2, movedGroup, p2, p1, 'vertical');
+                                snapGroups(g2, movedGroup, p2, p1, 'vertical', movedGroup);
                                 snapped = true;
                                 break;
                             }
@@ -682,7 +682,7 @@
             }
         };
 
-        const snapGroups = (g1, g2, p1, p2, direction) => {
+        const snapGroups = (g1, g2, p1, p2, direction, movedGroup) => {
             let dx = 0;
             let dy = 0;
 
@@ -711,11 +711,14 @@
                 dx = p1.x - p2.x;
             }
 
-            g2.move(dx, dy);
+            const sign = (movedGroup === g1 ? -1 : 1);
+            movedGroup.move(sign * dx, sign * dy);
 
-            g1.merge(g2);
+            let absorbingGroup = (movedGroup === g1 ? g2 : g1);
+            let mergingGroup = movedGroup;
+            absorbingGroup.merge(mergingGroup);
 
-            const index = groups.indexOf(g2);
+            const index = groups.indexOf(mergingGroup);
             if (index > -1) {
                 groups.splice(index, 1);
             }
@@ -793,5 +796,7 @@
         });
     });
 </script>
+
+
 </body>
 </html>
