@@ -52,6 +52,32 @@
             align-items: center;
             gap: 1rem;
         }
+        #clock-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-left: auto; /* Push to the right */
+        }
+        #clock {
+            width: 22px; /* 60% smaller: 55 * 0.4 */
+            height: 43px; /* 60% smaller: 108 * 0.4 */
+            background-image: url('https://vita2048.github.io/Puzzle/HourglassResized.png');
+            background-size: 155px 43px; /* 60% smaller: 388 * 0.4, 108 * 0.4 */
+            background-position: 0 0; /* First frame visible */
+            animation: none; /* No animation by default */
+        }
+        #clock.animating {
+            animation: clock-animation 2.333s steps(7) infinite; /* 7 frames at 3 FPS: 7/3 ≈ 2.333s */
+        }
+        @keyframes clock-animation {
+            0% { background-position: 0 0; }
+            100% { background-position: -155px 0; } /* Shift by scaled total width */
+        }
+        #stopwatch {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: white;
+        }
         #start-modal {
             display: none;
             top: 50%;
@@ -186,6 +212,10 @@
         <div id="menu">
             <button id="start-btn">New Game</button>
             <button id="reset-btn" disabled>Reset</button>
+            <div id="clock-container">
+                <div id="clock"></div>
+                <span id="stopwatch">00h : 00m : 00s</span>
+            </div>
         </div>
 
         <!-- Image upload modal -->
@@ -499,6 +529,8 @@
         p.startPuzzle = (uploadedImg, pieceCount) => {
             img = uploadedImg;
             gameState = 'playing';
+            resetStopwatch();
+            startStopwatch();
 
             const aspectRatio = img.width / img.height;
             let bestCols = 0;
@@ -623,6 +655,8 @@
             gameState = 'playing';
             selectedGroup = null;
             isDragging = false;
+            resetStopwatch();
+            startStopwatch();
         };
 
         p.mousePressed = () => {
@@ -675,6 +709,7 @@
                 if (groups.length === 1 && pieces.length > 1) {
                     centerCompletedPuzzle();
                     gameState = 'finished';
+                    stopStopwatch();
                 }
             }
         };
@@ -774,6 +809,49 @@
         window.p5Instance = p;
     };
 
+    // --- Stopwatch Functions ---
+    let stopwatchInterval;
+    let startTime;
+    let elapsedTime = 0;
+    let isStopwatchRunning = false;
+
+    function startStopwatch() {
+        if (!isStopwatchRunning) {
+            startTime = Date.now() - elapsedTime;
+            stopwatchInterval = setInterval(updateStopwatchDisplay, 1000);
+            isStopwatchRunning = true;
+            document.getElementById('clock-container').style.display = 'flex';
+            document.getElementById('clock').classList.add('animating');
+        }
+    }
+
+    function stopStopwatch() {
+        if (isStopwatchRunning) {
+            clearInterval(stopwatchInterval);
+            elapsedTime = Date.now() - startTime;
+            isStopwatchRunning = false;
+            document.getElementById('clock').classList.remove('animating');
+        }
+    }
+
+    function resetStopwatch() {
+        stopStopwatch();
+        elapsedTime = 0;
+        updateStopwatchDisplay();
+    }
+
+    function updateStopwatchDisplay() {
+        if (isStopwatchRunning) {
+            elapsedTime = Date.now() - startTime;
+        }
+        const totalSeconds = Math.floor(elapsedTime / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        const display = `${hours.toString().padStart(2, '0')}h : ${minutes.toString().padStart(2, '0')}m : ${seconds.toString().padStart(2, '0')}s`;
+        document.getElementById('stopwatch').textContent = display;
+    }
+
     // --- UI Event Handlers ---
     document.addEventListener('DOMContentLoaded', () => {
         new p5(sketch, 'p5-canvas-container');
@@ -835,6 +913,8 @@
         });
     });
 </script>
+
+
 
 
 </body>
