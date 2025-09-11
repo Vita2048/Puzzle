@@ -58,21 +58,23 @@
             gap: 0.5rem;
             margin-left: auto; /* Push to the right */
         }
-        #clock {
-            width: 22px; /* 60% smaller: 55 * 0.4 */
-            height: 43px; /* 60% smaller: 108 * 0.4 */
-            background-image: url('https://vita2048.github.io/Puzzle/HourglassResized.png');
-            background-size: 155px 43px; /* 60% smaller: 388 * 0.4, 108 * 0.4 */
-            background-position: 0 0; /* First frame visible */
-            animation: none; /* No animation by default */
-        }
-        #clock.animating {
-            animation: clock-animation 2.333s steps(7) infinite; /* 7 frames at 3 FPS: 7/3 ≈ 2.333s */
-        }
-        @keyframes clock-animation {
-            0% { background-position: 0 0; }
-            100% { background-position: -155px 0; } /* Shift by scaled total width */
-        }
+
+#clock {
+    width: 48px;
+    height: 56px;
+    background-image: url('https://vita2048.github.io/Puzzle/sprite-sheet.png');
+    background-size: 480px 56px;
+    background-position: 0 0;
+    animation: none;
+}
+#clock.animating {
+    animation: clock-animation 3.333s steps(10) infinite;
+}
+@keyframes clock-animation {
+    0% { background-position: 0 0; }
+    100% { background-position: -480px 0; }
+}
+
         #stopwatch {
             font-size: 1.125rem;
             font-weight: bold;
@@ -913,10 +915,5 @@
         });
     });
 </script>
-
-
-
-
 </body>
 </html>
-
