@@ -62,17 +62,17 @@
 #clock {
     width: 48px;
     height: 56px;
-    background-image: url('https://vita2048.github.io/Puzzle/sprite-sheet.png');
-    background-size: 480px 56px;
+    background-image: url('https://vita2048.github.io/Puzzle/sprite-sheet13.png');
+    background-size: 624px 56px;
     background-position: 0 0;
     animation: none;
 }
 #clock.animating {
-    animation: clock-animation 3.333s steps(10) infinite;
+    animation: clock-animation 3.333s steps(13) infinite;
 }
 @keyframes clock-animation {
     0% { background-position: 0 0; }
-    100% { background-position: -480px 0; }
+    100% { background-position: -624px 0; }
 }
 
         #stopwatch {
@@ -915,6 +915,9 @@
         });
     });
 </script>
+
+
+
+
 </body>
 </html>
-
